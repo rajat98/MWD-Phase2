@@ -1,7 +1,3 @@
-import os
-import pickle
-from datetime import datetime
-
 import PIL.Image
 import matplotlib.pyplot as plt
 import numpy as np
@@ -10,8 +6,11 @@ import torchvision.datasets as datasets
 import torchvision.models as models
 from PIL import ImageOps
 from pymongo import MongoClient
+from datetime import datetime
+from sklearn.decomposition import TruncatedSVD, NMF, LatentDirichletAllocation
+from sklearn.cluster import KMeans
+
 from scipy.signal import convolve2d
-from sklearn.decomposition import LatentDirichletAllocation
 from torchvision.transforms import transforms
 
 ROOT_DIR = '/home/rpaw/MWD/caltech-101/caltech-101/101_ObjectCategories/'
@@ -378,6 +377,12 @@ def extract_resnet_fc_1000(image):
     return feature_output.numpy()
 
 
+# Function to extract Resnet 50 Fully Connected layer features
+def extract_resnet_fc_1000(image):
+    layer = CNN_MODEL.fc
+    feature_output = extract_feature_vector(image, layer)
+    return feature_output.numpy()
+
 # Function to calculate user specified features and display input image
 def extract_features(image_id, feature_options):
     feature_map = dict()
@@ -407,20 +412,20 @@ def extract_features(image_id, feature_options):
 
 # Driver function to take user inputs and find k similar images to the input image
 def driver():
-    feature_option = int(input("Please pick one of the below options\n"
-                               "1. HOG\n"
-                               "2. Color Moments\n"
-                               "3. Resnet Layer 3\n"
-                               "4. Resnet Avgpool\n"
-                               "5. Resnet FC\n"))
-    while feature_option not in list(range(1, 7)):
-        print(f"Invalid input: {feature_option}")
-        feature_option = int(input("Please pick one of the below options\n"
-                                   "1. HOG\n"
-                                   "2. Color Moments\n"
-                                   "3. Resnet Layer 3\n"
-                                   "4. Resnet Avgpool\n"
-                                   "5. Resnet FC\n"))
+    # feature_option = int(input("Please pick one of the below options\n"
+    #                            "1. HOG\n"
+    #                            "2. Color Moments\n"
+    #                            "3. Resnet Layer 3\n"
+    #                            "4. Resnet Avgpool\n"
+    #                            "5. Resnet FC\n"))
+    # while feature_option not in list(range(1, 7)):
+    #     print(f"Invalid input: {feature_option}")
+    #     feature_option = int(input("Please pick one of the below options\n"
+    #                                "1. HOG\n"
+    #                                "2. Color Moments\n"
+    #                                "3. Resnet Layer 3\n"
+    #                                "4. Resnet Avgpool\n"
+    #                                "5. Resnet FC\n"))
 
     k = int(input("Select K to find K similar images to given input image\n"))
     while k < 1 or k > 8676:
@@ -444,76 +449,32 @@ def driver():
 
 def process_top_k_latent_semantics(feature_option, k, dim_red_opn):
     feature_matrix = get_feature_matrix(feature_option)
-    image_to_latent_features = np.array([])
-    latent_feature_to_original_feature = np.array([])
     match dim_red_opn:
         case 1:
-            u, sigma, v_transpose = truncated_svd(k, feature_matrix)
-            image_to_latent_features = u @ sigma
-            latent_feature_to_original_feature = v_transpose
+            model = truncated_svd(k)
         case 2:
-            # model = NMF(n_components=k)
-            feature_matrix = get_positive_feature_matrix(feature_matrix)
-            W, H = nmf_sgd(feature_matrix.T, k)
-            # https://www.geeksforgeeks.org/non-negative-matrix-factorization/
-            image_to_latent_features = H.T
-            latent_feature_to_original_feature = W
+            model = NMF(n_components=k)
         case 3:
-            feature_matrix = get_positive_feature_matrix(feature_matrix)
-            lda = LatentDirichletAllocation(n_components=k)
-            lda.fit(feature_matrix)  # Replace with your text data
-            # document_topic_matrix
-            image_to_latent_features = lda.transform(feature_matrix)
-            # topic_word_matrix
-            latent_feature_to_original_feature = lda.components_
+            model = LatentDirichletAllocation(n_components=k)
         case 4:
-            centroid, latent_features = kmeans(feature_matrix, k)
-            image_to_latent_features = latent_features
-            latent_feature_to_original_feature = centroid
+            model = KMeans(n_clusters=k)
 
-    print_image_id_weight_pairs(image_to_latent_features, dim_red_opn)
-    save_latent_features_to_file(image_to_latent_features, latent_feature_to_original_feature, dim_red_opn, k, feature_option)
-
-
-def save_latent_features_to_file(image_to_latent_features, latent_feature_to_original_feature, dim_red_opn, k, feature_option):
-    latent_features = {'image_to_latent_features': image_to_latent_features,
-                       'latent_feature_to_original_feature': latent_feature_to_original_feature}
-    dim_red_opn_to_string_map = {
-        1: "SVD",
-        2: "NMF",
-        3: "LDA",
-        4: "K-Means"
-    }
-    feature_option_to_feature_index_map = {
-        1: "HOG",
-        2: "CM",
-        3: "L3",
-        4: "AvgPool",
-        5: "FC",
-        6: "RESNET"
-    }
-
-    latent_feature_storage_path = f"../Outputs/TS3/{feature_option_to_feature_index_map[feature_option]}/{dim_red_opn_to_string_map[dim_red_opn]}_{k}.pkl"
-    # Ensure that the directory path exists, creating it if necessary
-    os.makedirs(os.path.dirname(latent_feature_storage_path), exist_ok=True)
-    with open(latent_feature_storage_path, 'wb') as file:
-        pickle.dump(latent_features, file)
+    latent_semantics = model.fit_transform(feature_matrix)
+    output_file = f"../Outputs/{feature_option}_{k}_latent_semantics"
+    with open(output_file, "w") as output_file:
+        for i, row in enumerate(latent_semantics):
+            # Sort the imageID-weight pairs by weight in decreasing order
+            sorted_pairs = sorted(enumerate(row), key=lambda x: -x[1])
+            top_k_pairs = sorted_pairs[:k]  # Get the top-k pairs
+            output_file.write(f"Latent Semantic {i + 1}:\n")
+            for image_id, weight in top_k_pairs:
+                output_file.write(f"Image ID: {image_id}, Weight: {weight}\n")
 
 
-def print_image_id_weight_pairs(latent_features, dim_red_opn):
-    for index, latent_features in enumerate(latent_features, 1):
-        image_id = 2 * index
-        sorted_indices = np.argsort(-latent_features)
-        # sorted_data = latent_features[sorted_indices]
-        print(f"image_id: {image_id}")
-        for sorted_index in sorted_indices:
-            print(f"latent feature: {sorted_index}  latent feature value: {latent_features[sorted_index]}")
-
-
-def nmf_sgd(feature_matrix, k, num_iterations=100, learning_rate=0.01):
+def nmf_sgd(feature_matrix, k, num_iterations=1000, learning_rate=0.01):
     # Initialize matrices W and H with random non-negative values
-    W = np.random.rand(feature_matrix.shape[0], k)* 0.01
-    H = np.random.rand(k, feature_matrix.shape[1])* 0.01
+    W = np.random.rand(feature_matrix.shape[0], k)
+    H = np.random.rand(k, feature_matrix.shape[1])
 
     for iteration in range(num_iterations):
         # Compute the current approximation of X
@@ -526,24 +487,22 @@ def nmf_sgd(feature_matrix, k, num_iterations=100, learning_rate=0.01):
         for i in range(feature_matrix.shape[0]):
             for j in range(k):
                 gradient = 0
-                for l in range(feature_matrix.shape[1]):
-                    gradient += 2 * error[i][l] * H[j][l]
+                for k in range(feature_matrix.shape[1]):
+                    gradient += 2 * error[i][k] * H[j][k]
                 W[i][j] += learning_rate * gradient
 
         # Update H using SGD
         for i in range(k):
             for j in range(feature_matrix.shape[1]):
                 gradient = 0
-                for l in range(feature_matrix.shape[0]):
-                    gradient += 2 * error[l][j] * W[l][i]
+                for k in range(feature_matrix.shape[0]):
+                    gradient += 2 * error[k][j] * W[k][i]
                 H[i][j] += learning_rate * gradient
 
     return W, H
-
-
 def truncated_svd(k, feature_matrix):
     u, sigma, v_transpose = svd(feature_matrix)
-    return u[:, :k], sigma[:k, :k], v_transpose[:k, :]
+    return u[, :k], sigma[:k, :k], v_transpose[:k, ]
 
 
 def svd(feature_matrix):
@@ -555,66 +514,11 @@ def svd(feature_matrix):
     eigenvalues_2, eigenvectors_2 = np.linalg.eig(covariance_matrix_2)
     ncols2 = np.argsort(eigenvalues_2)[::-1]
 
-    v_transpose = eigenvectors_1[ncols1].T
-    u = eigenvectors_2[ncols2]
-    sigma = np.diag(np.sqrt(eigenvalues_1)[::-1])
+    v_transpose = eigenvectors_1[:ncols1].T
+    u = eigenvalues_2[:ncols2]
+    sigma = np.sqrt(eigenvalues_1)[::-1]
 
     return u, sigma, v_transpose
-
-
-def kmeans(data, k):
-    m, n = data.shape
-    # Initialize centroids randomly
-    centroids = data[np.random.choice(n, k, replace=False)]
-
-    # Number of iterations
-    max_iterations = 100
-
-    for _ in range(max_iterations):
-        # Assign each data point to the nearest centroid
-        labels = np.argmin(np.linalg.norm(data[:, np.newaxis] - centroids, axis=2), axis=1)
-
-        # Update centroids to the mean of the assigned data points
-        new_centroids = np.array([data[labels == i].mean(axis=0) for i in range(k)])
-
-        # Check for convergence
-        if np.all(centroids == new_centroids):
-            break
-
-        centroids = new_centroids
-    latent_feature = get_k_latent_features_knn(centroids, data)
-    return centroids, latent_feature
-
-
-def get_k_latent_features_knn(centroids, data):
-    """
-    Calculate the Euclidean distance between each data point and each cluster centroid.
-
-    Parameters:
-    data (ndarray): An array of shape (n, m) representing n data points with m features.
-    centroids (ndarray): An array of shape (k, m) representing k cluster centroids.
-
-    Returns:
-    ndarray: An array of shape (n, k) where entry (i, j) is the distance of data point i from cluster centroid j.
-    """
-    n, m = data.shape
-    k, _ = centroids.shape
-
-    # Expand dimensions for broadcasting
-    expanded_data = data[:, np.newaxis, :]
-    expanded_centroids = centroids[np.newaxis, :, :]
-
-    # Calculate Euclidean distance
-    distance_matrix = np.sqrt(np.sum((expanded_data - expanded_centroids) ** 2, axis=2))
-
-    return distance_matrix
-
-
-def calculate_cost(X, centroids, cluster):
-    sum = 0
-    for i, val in enumerate(X):
-        sum += np.sqrt((centroids[int(cluster[i]), 0] - val[0]) ** 2 + (centroids[int(cluster[i]), 1] - val[1]) ** 2)
-    return sum
 
 
 def get_feature_matrix(feature_option):
@@ -635,20 +539,5 @@ def get_feature_matrix(feature_option):
     return np.array(feature_matrix)
 
 
-def get_positive_feature_matrix(feature_matrix):
-    # Step 1: Find the minimum value in the matrix
-    min_value = np.min(feature_matrix)
-
-    # Step 2: Add the absolute value of the minimum value to all elements
-    matrix_positive = feature_matrix + abs(min_value)
-
-    # Step 3: Normalize the matrix to the range [0, 1]
-    normalized_matrix = (matrix_positive - np.min(matrix_positive)) / (
-            np.max(matrix_positive) - np.min(matrix_positive))
-
-    return normalized_matrix
-
-
 if __name__ == "__main__":
-    # driver()
-    process_top_k_latent_semantics(5, 5, 4)
+    driver()

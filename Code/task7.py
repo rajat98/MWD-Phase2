@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 
 import PIL
@@ -444,27 +445,49 @@ def driver():
     while input_label < 0 or input_label > 100:
         print(f"Invalid label value: {input_label}. Please pick label in range of 0-100\n.")
         input_label = int(input("Please enter image label\n"))
-    feature_option = int(input("Please pick one of the below options\n"
-                               "1. HOG\n"
-                               "2. Color Moments\n"
-                               "3. Resnet Layer 3\n"
-                               "4. Resnet Avgpool\n"
-                               "5. Resnet FC\n"))
-    while feature_option not in list(range(1, 7)):
-        print(f"Invalid input: {feature_option}")
-        feature_option = int(input("Please pick one of the below options\n"
-                                   "1. HOG\n"
-                                   "2. Color Moments\n"
-                                   "3. Resnet Layer 3\n"
-                                   "4. Resnet Avgpool\n"
-                                   "5. Resnet FC\n"))
+    latent_semantic_option = int(input("Please enter latent semantic in format Task-FeatureModel-ReducedDimension-DimensionReductionTechnique\n"
+                               "Valid Tasks: T3, T4, T5, T6\n"
+                               "Valid Feature Model: CM, HOG, AvgPool, L3, FC, RESNET\n"
+                               "Valid Reduced Dimension: 1 - length of feature model\n"
+                               "Valid Dimension Reduction Technique: SVD, NNMF, LDA, kmeans\n"))
+    is_valid_feature_option = validate_latent_semantic_option(latent_semantic_option)
+    while is_valid_feature_option not in list(range(1, 7)):
+        print(f"Invalid input: {latent_semantic_option}")
+        latent_semantic_option = int(input(
+            "Please enter latent semantic in format Task-FeatureModel-ReducedDimension-DimensionReductionTechnique\n"
+            "Valid Tasks: T3, T4, T5, T6\n"
+            "Valid Feature Model: CM, HOG, AvgPool, L3, FC, RESNET\n"
+            "Valid Reduced Dimension: 1 - length of feature model\n"
+            "Valid Dimension Reduction Technique: SVD, NNMF, LDA, kmeans\n"))
+        is_valid_feature_option = validate_latent_semantic_option(latent_semantic_option)
 
     k = int(input("Select K to find K similar images to given input image\n"))
     while k < 1 or k > 8676:
         print(f"Invalid K value: {k}. Please pick K in range of 1-8676.")
         k = int(input("Select K to find K similar images to given input image\n"))
-    get_k_nearest_neighbours(input_label, k, feature_option)
+    get_k_nearest_neighbours(input_label, k, latent_semantic_option)
 
+
+def validate_latent_semantic_option(latent_semantic_option):
+    # Define regular expressions for each part of the input format
+    task_pattern = r"(T3|T4|T5|T6)"
+    feature_model_pattern = r"(CM|HOG|AvgPool|L3|FC|RESNET)"
+    reduced_dimension_pattern = r"\d+"
+    dimension_reduction_technique_pattern = r"(SVD|NNMF|LDA|kmeans)"
+
+    # Combine the patterns into a single regex for the full format
+    input_pattern = re.compile(
+        f"{task_pattern}-{feature_model_pattern}-{reduced_dimension_pattern}-{dimension_reduction_technique_pattern}"
+    )
+
+    # Get user input
+    user_input = latent_semantic_option
+
+    # Check if the input matches the format
+    if input_pattern.match(user_input):
+        return True
+
+    return False
 
 if __name__ == "__main__":
     driver()
