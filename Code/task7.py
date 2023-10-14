@@ -1,3 +1,5 @@
+import os
+import pickle
 import re
 from datetime import datetime
 
@@ -223,105 +225,14 @@ def extract_features_and_visualize_image(image_id, feature_options):
     print_feature_details(feature_list)
 
 
-def get_k_nearest_neighbours(input_label, k, feature_option):
-    # Loaded datatset
-    dataset = datasets.Caltech101(BASE_DIR)
-    collection = DATABASE.feature_descriptors
-    # Extracted Input Image
-    feature_option_to_feature_index_map = {
-        1: "hog_descriptor",
-        2: "color_moments",
-        3: "resnet_layer3_1024",
-        4: "resnet_avgpool_1024",
-        5: "resnet_fc_1000"
-    }
-    index = feature_option_to_feature_index_map[feature_option]
-    input_label_features = collection.find({"image_label": input_label}, {index: 1, "_id": 0})
-    input_label_features = [input_label_feature[index] for input_label_feature in input_label_features]
-
-    cumulative_input_label_features = [sum(inner_list) for inner_list in zip(*input_label_features)]
-
-    # Divide the sums by the number of inner lists to get the average
-    input_label_features = [i / len(input_label_features) for i in cumulative_input_label_features]
-
-    # Extracted feature superset from the DB
-    image_superset_features = collection.find({})
-
-    # Initialized np array for storing similarity measures for each feature model
-    feature_vector_similarity_list = np.array([])
-    image_id_list = []
-    feature_vector_similarity_sorted_pairs = []
-
-    # Iterated over images from superset to compute measures corresponding to each image
-    for image_features in image_superset_features:
-        match feature_option:
-            case 1:
-                # Calculated euclidian distance between input image and iterated image for HOG feature descriptor
-                feature_vector_similarity_list = get_feature_vector_similarity_sorted_pairs(
-                    feature_vector_similarity_list,
-                    input_label_features,
-                    image_features["hog_descriptor"],
-                    feature_option)
-
-            case 2:
-                # Calculated euclidian distance between input image and iterated image for color moments feature descriptor
-                feature_vector_similarity_list = get_feature_vector_similarity_sorted_pairs(
-                    feature_vector_similarity_list,
-                    input_label_features,
-                    image_features["color_moments"],
-                    feature_option)
-
-            case 3:
-                # Calculated cosine similarity between input image and iterated image for resnet layer 3 feature descriptor
-                feature_vector_similarity_list = get_feature_vector_similarity_sorted_pairs(
-                    feature_vector_similarity_list,
-                    input_label_features,
-                    image_features[
-                        "resnet_layer3_1024"],
-                    feature_option)
-
-            case 4:
-                # Calculated cosine similarity between input image and iterated image for resnet avgpool layer feature descriptor
-                feature_vector_similarity_list = get_feature_vector_similarity_sorted_pairs(
-                    feature_vector_similarity_list,
-                    input_label_features,
-                    image_features[
-                        "resnet_avgpool_1024"],
-                    feature_option)
-            case 5:
-                # Calculated cosine similarity between input image and iterated image for resnet FC layer feature descriptor
-                feature_vector_similarity_list = get_feature_vector_similarity_sorted_pairs(
-                    feature_vector_similarity_list,
-                    input_label_features,
-                    image_features["resnet_fc_1000"],
-                    feature_option)
-        # Appended similarity results to the corresponding list
-        image_id_list.append(image_features["image_id"])
-
-    # Sorted and paired index with similarity score
-    if feature_option in [1, 2]:
-        feature_vector_similarity_sorted_indices = np.argsort(feature_vector_similarity_list)
-        feature_vector_similarity_sorted_elements = np.sort(feature_vector_similarity_list)
-    else:
-        feature_vector_similarity_sorted_indices = np.argsort(feature_vector_similarity_list)[::-1]
-        feature_vector_similarity_sorted_elements = np.sort(feature_vector_similarity_list)[::-1]
-
-    feature_vector_similarity_sorted_pairs = list(
-        zip(feature_vector_similarity_sorted_elements, feature_vector_similarity_sorted_indices))
-
-    # Plotted results
-    plot_result(feature_vector_similarity_sorted_pairs[:k], image_id_list, k, input_label, feature_option)
-
-
-def get_feature_vector_similarity_sorted_pairs(feature_vector_similarity_list, input_image_feature, image_feature,
-                                               feature_option):
+def get_feature_vector_similarity_sorted_pairs(feature_vector_similarity_list, input_image_feature, image_feature):
     # Calculated euclidian distance between input image and iterated image for feature descriptor
-    if feature_option in [1, 2]:
-        feature_vector_similarity = calculate_euclidian_distance(np.array(input_image_feature),
-                                                                 np.array(image_feature))
-    else:
-        feature_vector_similarity = cosine_similarity(np.array(input_image_feature),
-                                                      np.array(image_feature))
+    # if feature_option in [1, 2]:
+    # feature_vector_similarity = calculate_euclidian_distance(np.array(input_image_feature),
+    #                                                              np.array(image_feature))
+    # else:
+    feature_vector_similarity = cosine_similarity(np.array(input_image_feature),
+                                                  np.array(image_feature))
     return np.append(feature_vector_similarity_list, feature_vector_similarity)
 
 
@@ -338,15 +249,15 @@ def extract_features(image_id, feature_options):
     image = image.convert('RGB')
     image.show()
     match feature_options:
-        case 1:
+        case "hog_descriptor":
             feature_map["hog_descriptor"] = extract_hog_descriptor(image)
-        case 2:
+        case "color_moments":
             feature_map["color_moments"] = extract_color_moment(image)
-        case 3:
+        case "resnet_layer3_1024":
             feature_map["resnet_layer3_1024"] = extract_resnet_layer3_1024(image)
-        case 4:
+        case "resnet_avgpool_1024":
             feature_map["resnet_avgpool_1024"] = extract_resnet_avgpool_1024(image)
-        case 5:
+        case "resnet_fc_1000":
             feature_map["resnet_fc_1000"] = extract_resnet_fc_1000(image)
 
     return feature_map
@@ -373,7 +284,7 @@ def calculate_euclidian_distance(vector1, vector2):
 
 
 # Function to plot k similar images against input image for all 5 feature models
-def plot_result(feature_vector_similarity_sorted_pairs, image_id_list, k, input_label, feature_option):
+def plot_result(feature_vector_similarity_sorted_pairs, image_id_list, k, input_label, latent_feature_option):
     dataset = datasets.Caltech101(BASE_DIR)
 
     # Number of images per row
@@ -387,9 +298,14 @@ def plot_result(feature_vector_similarity_sorted_pairs, image_id_list, k, input_
     # Load and display the original image
     original_label = f"Input Label: {input_label}"
 
-    # axes[0, 1].imshow(original_img, cmap="gray")
-    # axes[0, 1].axis('off')
+    if input_label.isnumeric():
+        input_image_id = int(input_label)
+        original_img = dataset[input_image_id][0]
+    else:
+        original_img = PIL.Image.open(input_label)
 
+    axes[0, 1].imshow(original_img, cmap="gray")
+    axes[0, 1].axis('off')
     axes[0, 0].set_title(original_label, loc='center', pad=10, verticalalignment='center')
     axes[0, 0].axis('off')
 
@@ -410,7 +326,7 @@ def plot_result(feature_vector_similarity_sorted_pairs, image_id_list, k, input_
     }
 
     for i in range(1):
-        axes[i + 1, 0].set_title(feature_option_to_label_map[feature_option], loc='center', pad=10,
+        axes[i + 1, 0].set_title(latent_feature_option, loc='center', pad=10,
                                  verticalalignment='top')
         axes[i + 1, 0].axis('off')
         for j in range(images_per_row):
@@ -420,13 +336,13 @@ def plot_result(feature_vector_similarity_sorted_pairs, image_id_list, k, input_
                 img = dataset[image_id][0]
                 axes[i + 1, j + 1].imshow(img, cmap="gray")
                 axes[i + 1, j + 1].set_title(
-                    f'{feature_option_to_similarity_type_map[feature_option]}: {similarity_score:.2f}', pad=5,
+                    f'Euclidian Distance: {similarity_score:.2f}', pad=5,
                     verticalalignment='top')
                 axes[i + 1, j + 1].axis('off')
 
     # Removed empty subplot in row 0
     for j in range(0, images_per_row + 1):
-        if j in [0]:
+        if j in [0, 1]:
             continue
         fig.delaxes(axes[0, j])
 
@@ -439,33 +355,175 @@ def plot_result(feature_vector_similarity_sorted_pairs, image_id_list, k, input_
     plt.show()
 
 
+def get_reduced_features_params(latent_semantic_option):
+    latent_semantic_tokens = latent_semantic_option.split("-")
+    task = latent_semantic_tokens[0]
+    feature_model = latent_semantic_tokens[1]
+    reduced_feature = f"{latent_semantic_tokens[-1]}_{latent_semantic_tokens[-2]}.pkl"
+    return task, feature_model, reduced_feature
+
+
+def get_latent_feature_storage_path(task, feature_model, reduced_feature):
+    return f"../Outputs/{task}/{feature_model}/{reduced_feature}"
+
+
+def load_reduced_features(task, feature_model, reduced_feature):
+    file_path = get_latent_feature_storage_path(task, feature_model, reduced_feature)
+    if not os.path.exists(file_path):
+        print(f"The file at '{file_path}' does not exist.\n")
+        exit()
+
+    # Load the NumPy arrays from the pickle file
+    with open(file_path, 'rb') as file:
+        latent_features = pickle.load(file)
+
+    image_to_latent_features = latent_features["image_to_latent_features"]
+    latent_feature_to_original_feature = latent_features["latent_feature_to_original_feature"]
+    return image_to_latent_features, latent_feature_to_original_feature
+
+
+def get_kmeans_latent_feature(input_image_features, latent_feature_to_original_feature):
+    latent_feature = []
+    for centroid in latent_feature_to_original_feature:
+        latent_feature.append(calculate_euclidian_distance(input_image_features, centroid))
+    return np.array(latent_feature)
+
+
+def get_input_image_latent_feature(input_image_features, latent_feature_to_original_feature, reduced_feature):
+    input_image_features = np.array(input_image_features)
+    if reduced_feature.startswith("kmeans"):
+        latent_input_image_feature = get_kmeans_latent_feature(input_image_features, latent_feature_to_original_feature)
+    else:
+        latent_input_image_feature = input_image_features @ (latent_feature_to_original_feature.T)
+
+    return latent_input_image_feature
+
+
+def get_k_nearest_neighbours(image_id, k, latent_semantic_option):
+    # Loaded datatset
+    dataset = datasets.Caltech101(BASE_DIR)
+    collection = DATABASE.feature_descriptors
+
+    task, feature_model, reduced_feature = get_reduced_features_params(latent_semantic_option)
+    image_to_latent_features, latent_feature_to_original_feature = load_reduced_features(task, feature_model,
+                                                                                         reduced_feature)
+
+    feature_model_name_map = {
+        "CM": "color_moments",
+        "HOG": "hog_descriptor",
+        "AvgPool": "resnet_avgpool_1024",
+        "L3": "resnet_layer3_1024",
+        "FC": "resnet_fc_1000",
+        "RESNET": "resnet"
+    }
+
+    # Extracted Input Image
+    if image_id.isnumeric() and int(image_id) % 2 == 0:
+        input_image_features = collection.find_one({"image_id": int(image_id)})
+    else:
+        input_image_features = extract_features(image_id, feature_model_name_map[feature_model])
+
+    input_image_features = input_image_features[feature_model_name_map[feature_model]]
+
+    input_image_latent_feature = get_input_image_latent_feature(input_image_features,
+                                                                latent_feature_to_original_feature, reduced_feature)
+    image_superset_latent_features = image_to_latent_features
+
+    # Initialized np array for storing similarity measures for each feature model
+    feature_vector_similarity_list = np.array([])
+    image_id_list = []
+    feature_vector_similarity_sorted_pairs = []
+
+    # Iterated over images from superset to compute measures corresponding to each image
+    for index, latent_image_features in enumerate(image_superset_latent_features, 0):
+        feature_vector_similarity_list = get_feature_vector_similarity_sorted_pairs(feature_vector_similarity_list,
+                                                                                    input_image_latent_feature,
+                                                                                    latent_image_features)
+        # match latent_semantic_option:
+        #     case 1:
+        #         # Calculated euclidian distance between input image and iterated image for HOG feature descriptor
+        #         feature_vector_similarity_list = get_feature_vector_similarity_sorted_pairs(feature_vector_similarity_list,
+        #                                                                                     input_image_features[
+        #                                                                                    "hog_descriptor"],
+        #                                                                                     image_features["hog_descriptor"],
+        #                                                                                     latent_semantic_option)
+        #
+        #     case 2:
+        #         # Calculated euclidian distance between input image and iterated image for color moments feature descriptor
+        #         feature_vector_similarity_list = get_feature_vector_similarity_sorted_pairs(feature_vector_similarity_list,
+        #                                                                                     input_image_features[
+        #                                                                                    "color_moments"],
+        #                                                                                     image_features["color_moments"],
+        #                                                                                     latent_semantic_option)
+        #
+        #     case 3:
+        #         # Calculated cosine similarity between input image and iterated image for resnet layer 3 feature descriptor
+        #         feature_vector_similarity_list = get_feature_vector_similarity_sorted_pairs(feature_vector_similarity_list,
+        #                                                                                     input_image_features[
+        #                                                                                    "resnet_layer3_1024"],
+        #                                                                                     image_features[
+        #                                                                                    "resnet_layer3_1024"],
+        #                                                                                     latent_semantic_option)
+        #
+        #     case 4:
+        #         # Calculated cosine similarity between input image and iterated image for resnet avgpool layer feature descriptor
+        #         feature_vector_similarity_list = get_feature_vector_similarity_sorted_pairs(feature_vector_similarity_list,
+        #                                                                                     input_image_features[
+        #                                                                                    "resnet_avgpool_1024"],
+        #                                                                                     image_features[
+        #                                                                                    "resnet_avgpool_1024"],
+        #                                                                                     latent_semantic_option)
+        #     case 5:
+        #         # Calculated cosine similarity between input image and iterated image for resnet FC layer feature descriptor
+        #         feature_vector_similarity_list = get_feature_vector_similarity_sorted_pairs(feature_vector_similarity_list,
+        #                                                                                     input_image_features[
+        #                                                                                    "resnet_fc_1000"],
+        #                                                                                     image_features["resnet_fc_1000"],
+        #                                                                                     latent_semantic_option)
+        # Appended similarity results to the corresponding list
+        current_image_id = 2 * index
+        image_id_list.append(current_image_id)
+
+    # Sorted and paired index with similarity score
+    # if latent_semantic_option in [1, 2]:
+    # feature_vector_similarity_sorted_indices = np.argsort(feature_vector_similarity_list)
+    # feature_vector_similarity_sorted_elements = np.sort(feature_vector_similarity_list)
+    # else:
+    feature_vector_similarity_sorted_indices = np.argsort(feature_vector_similarity_list)[::-1]
+    feature_vector_similarity_sorted_elements = np.sort(feature_vector_similarity_list)[::-1]
+
+    feature_vector_similarity_sorted_pairs = list(
+        zip(feature_vector_similarity_sorted_elements, feature_vector_similarity_sorted_indices))
+
+    # Plotted results
+    plot_result(feature_vector_similarity_sorted_pairs[:k], image_id_list, k, image_id, latent_semantic_option)
+
+
 # Driver function to compute features
 def driver():
-    input_label = int(input("Please enter image label\n"))
-    while input_label < 0 or input_label > 100:
-        print(f"Invalid label value: {input_label}. Please pick label in range of 0-100\n.")
-        input_label = int(input("Please enter image label\n"))
-    latent_semantic_option = int(input("Please enter latent semantic in format Task-FeatureModel-ReducedDimension-DimensionReductionTechnique\n"
-                               "Valid Tasks: T3, T4, T5, T6\n"
-                               "Valid Feature Model: CM, HOG, AvgPool, L3, FC, RESNET\n"
-                               "Valid Reduced Dimension: 1 - length of feature model\n"
-                               "Valid Dimension Reduction Technique: SVD, NNMF, LDA, kmeans\n"))
+    image_id = input("Enter image ID between 0-8676 or image path.\n")
+    latent_semantic_option = input(
+        "Please enter latent semantic in format Task-FeatureModel-ReducedDimension-DimensionReductionTechnique\n"
+        "Valid Tasks: T3, T4, T5, T6\n"
+        "Valid Feature Model: CM, HOG, AvgPool, L3, FC, RESNET\n"
+        "Valid Reduced Dimension: 1 - length of feature model\n"
+        "Valid Dimension Reduction Technique: SVD, NNMF, LDA, kmeans\n")
     is_valid_feature_option = validate_latent_semantic_option(latent_semantic_option)
-    while is_valid_feature_option not in list(range(1, 7)):
+    while not is_valid_feature_option:
         print(f"Invalid input: {latent_semantic_option}")
-        latent_semantic_option = int(input(
+        latent_semantic_option = input(
             "Please enter latent semantic in format Task-FeatureModel-ReducedDimension-DimensionReductionTechnique\n"
             "Valid Tasks: T3, T4, T5, T6\n"
             "Valid Feature Model: CM, HOG, AvgPool, L3, FC, RESNET\n"
             "Valid Reduced Dimension: 1 - length of feature model\n"
-            "Valid Dimension Reduction Technique: SVD, NNMF, LDA, kmeans\n"))
+            "Valid Dimension Reduction Technique: SVD, NNMF, LDA, kmeans\n")
         is_valid_feature_option = validate_latent_semantic_option(latent_semantic_option)
 
     k = int(input("Select K to find K similar images to given input image\n"))
     while k < 1 or k > 8676:
         print(f"Invalid K value: {k}. Please pick K in range of 1-8676.")
         k = int(input("Select K to find K similar images to given input image\n"))
-    get_k_nearest_neighbours(input_label, k, latent_semantic_option)
+    get_k_nearest_neighbours(image_id, k, latent_semantic_option)
 
 
 def validate_latent_semantic_option(latent_semantic_option):
@@ -489,5 +547,7 @@ def validate_latent_semantic_option(latent_semantic_option):
 
     return False
 
+
 if __name__ == "__main__":
-    driver()
+    # driver()
+    get_k_nearest_neighbours("2500", 5, "T3-FC-5-LDA")

@@ -7,6 +7,8 @@ from PIL import ImageOps
 from pymongo import MongoClient
 from scipy.signal import convolve2d
 
+torch.set_grad_enabled(False)
+
 ROOT_DIR = '/home/rpaw/MWD/caltech-101/caltech-101/101_ObjectCategories/'
 CNN_MODEL = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
 BASE_DIR = '/home/rpaw/MWD/'

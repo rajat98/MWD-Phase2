@@ -422,7 +422,7 @@ def driver():
 
     k = int(input("Select K to find K similar images to given input image\n"))
     while k < 1 or k > 8676:
-        print(f"Invalid K value: {image_id}. Please pick K in range of 1-8676.")
+        print(f"Invalid K value: {k}. Please pick K in range of 1-8676.")
         k = int(input("Select K to find K similar images to given input image\n"))
     get_k_nearest_neighbours(image_id, k, feature_option)
 

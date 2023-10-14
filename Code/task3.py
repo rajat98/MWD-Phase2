@@ -13,6 +13,8 @@ from pymongo import MongoClient
 from scipy.signal import convolve2d
 from sklearn.decomposition import LatentDirichletAllocation
 from torchvision.transforms import transforms
+from sklearn.decomposition import TruncatedSVD
+
 
 ROOT_DIR = '/home/rpaw/MWD/caltech-101/caltech-101/101_ObjectCategories/'
 CNN_MODEL = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
@@ -449,23 +451,34 @@ def process_top_k_latent_semantics(feature_option, k, dim_red_opn):
     match dim_red_opn:
         case 1:
             u, sigma, v_transpose = truncated_svd(k, feature_matrix)
-            image_to_latent_features = u @ sigma
+            svd = TruncatedSVD(n_components=k)
+            reduced_data = svd.fit_transform(feature_matrix)
+            image_to_latent_features = feature_matrix @ v_transpose.T
+            # Define a tolerance level
+            tolerance = 1e-3  # Adjust this based on your desired level of tolerance
+
+            # Compare the two matrices with tolerance
+            are_close = np.allclose(image_to_latent_features, reduced_data, atol=tolerance)
+
             latent_feature_to_original_feature = v_transpose
         case 2:
             # model = NMF(n_components=k)
             feature_matrix = get_positive_feature_matrix(feature_matrix)
-            W, H = nmf_sgd(feature_matrix.T, k)
+            W, H = nmf_sgd(feature_matrix, k)
+
             # https://www.geeksforgeeks.org/non-negative-matrix-factorization/
-            image_to_latent_features = H.T
-            latent_feature_to_original_feature = W
+            image_to_latent_features = feature_matrix @ H.T
+            latent_feature_to_original_feature = H
         case 3:
             feature_matrix = get_positive_feature_matrix(feature_matrix)
             lda = LatentDirichletAllocation(n_components=k)
             lda.fit(feature_matrix)  # Replace with your text data
             # document_topic_matrix
-            image_to_latent_features = lda.transform(feature_matrix)
+            # image_to_latent_features = lda.transform(feature_matrix)
             # topic_word_matrix
             latent_feature_to_original_feature = lda.components_
+            # document_topic_matrix
+            image_to_latent_features = feature_matrix @ latent_feature_to_original_feature.T
         case 4:
             centroid, latent_features = kmeans(feature_matrix, k)
             image_to_latent_features = latent_features
@@ -493,7 +506,7 @@ def save_latent_features_to_file(image_to_latent_features, latent_feature_to_ori
         6: "RESNET"
     }
 
-    latent_feature_storage_path = f"../Outputs/TS3/{feature_option_to_feature_index_map[feature_option]}/{dim_red_opn_to_string_map[dim_red_opn]}_{k}.pkl"
+    latent_feature_storage_path = f"../Outputs/T3/{feature_option_to_feature_index_map[feature_option]}/{dim_red_opn_to_string_map[dim_red_opn]}_{k}.pkl"
     # Ensure that the directory path exists, creating it if necessary
     os.makedirs(os.path.dirname(latent_feature_storage_path), exist_ok=True)
     with open(latent_feature_storage_path, 'wb') as file:
@@ -510,10 +523,13 @@ def print_image_id_weight_pairs(latent_features, dim_red_opn):
             print(f"latent feature: {sorted_index}  latent feature value: {latent_features[sorted_index]}")
 
 
-def nmf_sgd(feature_matrix, k, num_iterations=100, learning_rate=0.01):
+import numpy as np
+
+
+def nmf_sgd(feature_matrix, k, num_iterations=1000, learning_rate=0.01, regularization=0.01, gradient_clip=1.0):
     # Initialize matrices W and H with random non-negative values
-    W = np.random.rand(feature_matrix.shape[0], k)* 0.01
-    H = np.random.rand(k, feature_matrix.shape[1])* 0.01
+    W = np.random.rand(feature_matrix.shape[0], k) * 0.01
+    H = np.random.rand(k, feature_matrix.shape[1]) * 0.01
 
     for iteration in range(num_iterations):
         # Compute the current approximation of X
@@ -522,23 +538,50 @@ def nmf_sgd(feature_matrix, k, num_iterations=100, learning_rate=0.01):
         # Compute the error
         error = feature_matrix - X_approx
 
-        # Update W using SGD
+        # Update W using SGD with L2 regularization and gradient clipping
         for i in range(feature_matrix.shape[0]):
             for j in range(k):
                 gradient = 0
                 for l in range(feature_matrix.shape[1]):
                     gradient += 2 * error[i][l] * H[j][l]
+                gradient += 2 * regularization * W[i][j]  # L2 regularization term
+                gradient = np.clip(gradient, -gradient_clip, gradient_clip)  # Gradient clipping
                 W[i][j] += learning_rate * gradient
 
-        # Update H using SGD
+        # Update H using SGD with L2 regularization and gradient clipping
         for i in range(k):
             for j in range(feature_matrix.shape[1]):
                 gradient = 0
                 for l in range(feature_matrix.shape[0]):
                     gradient += 2 * error[l][j] * W[l][i]
+                gradient += 2 * regularization * H[i][j]  # L2 regularization term
+                gradient = np.clip(gradient, -gradient_clip, gradient_clip)  # Gradient clipping
                 H[i][j] += learning_rate * gradient
 
     return W, H
+
+
+def nnfm(feature_matrix, k, max_iter, init_mode='random'):
+    number_labels = feature_matrix.shape[0]
+    W = np.random.uniform(1, 2, (number_labels, k))
+    H = np.random.uniform(1, 2, (k, number_labels))
+    # W, H = random_initialization(A, k)
+    norms = []
+
+    for n in range(max_iter):
+        # Update H
+        W_TA = np.dot(W.T, feature_matrix)
+        W_TWH = np.dot(np.dot(W.T, W), H) + + 1.0e-10
+        H = H * (W_TA / W_TWH)
+
+        # Update W
+        AH_T = np.dot(feature_matrix, H.T)
+        WHH_T = np.dot(np.dot(W, H), H.T) + 1.0e-10
+        W = W * (AH_T / WHH_T)
+
+        norm = np.linalg.norm(feature_matrix - np.dot(W, H), 'fro')
+        norms.append(norm)
+    return W, H, norms
 
 
 def truncated_svd(k, feature_matrix):
@@ -651,4 +694,4 @@ def get_positive_feature_matrix(feature_matrix):
 
 if __name__ == "__main__":
     # driver()
-    process_top_k_latent_semantics(5, 5, 4)
+    process_top_k_latent_semantics(5, 5, 2)

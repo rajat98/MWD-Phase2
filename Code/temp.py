@@ -1,12 +1,7 @@
-import torch
-import torch.nn.functional as F
-from torch import cuda
+input_string = "T6-RESNET-5-SVD"
 
-# Assuming 'output' is the output of the final layer
-output = torch.randn(1, 1000)  # Example tensor
+# Split the input string by '-' and get the last element (SVD_5)
+parts = input_string.split('-')
+svd_value = "_"parts[-2:]
 
-# Apply the softmax operation
-probabilities = F.softmax(output, dim=1)
-
-# 'probabilities' now contains the class probabilities
-print(cuda.is_available() )
+print(svd_value)
