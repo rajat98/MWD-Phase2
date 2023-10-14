@@ -1,7 +1,12 @@
-input_string = "T6-RESNET-5-SVD"
+import numpy as np
 
-# Split the input string by '-' and get the last element (SVD_5)
-parts = input_string.split('-')
-svd_value = "_"parts[-2:]
+# Input array
+input_array = np.array([[[1, 2], [1, 2]], [[2, 2], [2, 2]]])
 
-print(svd_value)
+# Calculate the average along the first axis (axis=0)
+averaged_array = np.mean(input_array, axis=1)
+
+# Convert the result to a list if needed
+averaged_list = averaged_array.tolist()
+
+print(averaged_list)

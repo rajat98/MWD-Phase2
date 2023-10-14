@@ -50,7 +50,7 @@ def plot_result(feature_vector_similarity_sorted_pairs, image_id_list, k, input_
 
     # Number of rows needed(1 Original image + 5 Feature models)
     num_rows = 2
-    fig, axes = plt.subplots(num_rows, images_per_row + 1, figsize=(30, 25))
+    fig, axes = plt.subplots(num_rows, images_per_row + 1, figsize=(15, 10))
     plt.subplots_adjust(wspace=0.5)
 
     # Load and display the original image
@@ -120,7 +120,7 @@ def get_k_nearest_neighbours(image_id, k, feature_option):
     collection = DATABASE.feature_descriptors
     # Extracted Input Image
     if image_id.isnumeric() and int(image_id) % 2 == 0:
-        input_image_features = collection.find_one({"image_id": image_id})
+        input_image_features = collection.find_one({"image_id": int(image_id)})
     else:
         input_image_features = extract_features(image_id, feature_option)
 

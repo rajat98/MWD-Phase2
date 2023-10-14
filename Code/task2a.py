@@ -321,7 +321,7 @@ def get_k_nearest_neighbours(image_id, k, feature_option):
 
     print(f"K similar labels to input image:\n")
     for score, label in feature_vector_similarity_sorted_pairs:
-        print(f"label: {label} score: {score}\n")
+        print(f"label: {label} score: {score}")
 
 
 def get_feature_vector_similarity_sorted_pairs(feature_vector_similarity_list, input_image_feature, image_feature,

@@ -292,7 +292,7 @@ def plot_result(feature_vector_similarity_sorted_pairs, image_id_list, k, input_
 
     # Number of rows needed(1 Original image + 5 Feature models)
     num_rows = 2
-    fig, axes = plt.subplots(num_rows, images_per_row + 1, figsize=(30, 25))
+    fig, axes = plt.subplots(num_rows, images_per_row + 1, figsize=(15, 10))
     plt.subplots_adjust(wspace=0.5)
 
     # Load and display the original image
@@ -394,7 +394,7 @@ def get_input_image_latent_feature(input_image_features, latent_feature_to_origi
     if reduced_feature.startswith("kmeans"):
         latent_input_image_feature = get_kmeans_latent_feature(input_image_features, latent_feature_to_original_feature)
     else:
-        latent_input_image_feature = input_image_features @ (latent_feature_to_original_feature.T)
+        latent_input_image_feature = input_image_features @ latent_feature_to_original_feature.T
 
     return latent_input_image_feature
 
@@ -550,4 +550,4 @@ def validate_latent_semantic_option(latent_semantic_option):
 
 if __name__ == "__main__":
     # driver()
-    get_k_nearest_neighbours("2500", 5, "T3-FC-5-LDA")
+    get_k_nearest_neighbours("5122", 5, "T3-FC-5-NNMF")

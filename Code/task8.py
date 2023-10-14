@@ -292,7 +292,7 @@ def plot_result(feature_vector_similarity_sorted_pairs, image_id_list, k, input_
 
     # Number of rows needed(1 Original image + 5 Feature models)
     num_rows = 2
-    fig, axes = plt.subplots(num_rows, images_per_row + 1, figsize=(30, 25))
+    fig, axes = plt.subplots(num_rows, images_per_row + 1, figsize=(15, 10))
     plt.subplots_adjust(wspace=0.5)
 
     # Load and display the original image
@@ -342,7 +342,7 @@ def plot_result(feature_vector_similarity_sorted_pairs, image_id_list, k, input_
 
     # Removed empty subplot in row 0
     for j in range(0, images_per_row + 1):
-        if j in [0,1]:
+        if j in [0, 1]:
             continue
         fig.delaxes(axes[0, j])
 
@@ -382,10 +382,38 @@ def load_reduced_features(task, feature_model, reduced_feature):
     return image_to_latent_features, latent_feature_to_original_feature
 
 
-def get_input_image_latent_feature(input_image_features, latent_feature_to_original_feature):
+def get_kmeans_latent_feature(input_image_features, latent_feature_to_original_feature):
+    latent_feature = []
+    for centroid in latent_feature_to_original_feature:
+        latent_feature.append(calculate_euclidian_distance(input_image_features, centroid))
+    return np.array(latent_feature)
+
+
+def get_input_image_latent_feature(input_image_features, latent_feature_to_original_feature, reduced_feature):
     input_image_features = np.array(input_image_features)
-    latent_input_image_feature = input_image_features @ (latent_feature_to_original_feature.T)
+    if reduced_feature.startswith("kmeans"):
+        latent_input_image_feature = get_kmeans_latent_feature(input_image_features, latent_feature_to_original_feature)
+    else:
+        latent_input_image_feature = input_image_features @ latent_feature_to_original_feature.T
+
     return latent_input_image_feature
+
+
+def get_label_features(input_label_features, image_id_label_map):
+    # result = []
+    label_feature = []
+    for i in range(101):
+        label_feature.append([])
+
+    for index, input_label_feature in enumerate(input_label_features, 0):
+        filtered_items = [h for h in image_id_label_map if h["image_id"] == index * 2]
+        image_label = filtered_items[""]
+        label_feature[image_label].append(input_label_feature)
+
+    label_feature_array = np.array(label_feature)
+    averaged_array = np.mean(label_feature_array, axis=1)
+
+    return averaged_array
 
 
 def get_k_nearest_neighbours(image_id, k, latent_semantic_option):
@@ -412,13 +440,14 @@ def get_k_nearest_neighbours(image_id, k, latent_semantic_option):
     else:
         input_image_features = extract_features(image_id, feature_model_name_map[feature_model])
 
-
-
     input_image_features = input_image_features[feature_model_name_map[feature_model]]
 
     input_image_latent_feature = get_input_image_latent_feature(input_image_features,
-                                                                latent_feature_to_original_feature)
+                                                                latent_feature_to_original_feature, reduced_feature)
+
     image_superset_latent_features = image_to_latent_features
+    image_id_label_map = collection.find({}, {"image_label": 1, "image_id": 1, "_id": 0})
+    label_latent_features = get_label_features(image_superset_latent_features, image_id_label_map)
 
     # Initialized np array for storing similarity measures for each feature model
     feature_vector_similarity_list = np.array([])
@@ -426,10 +455,10 @@ def get_k_nearest_neighbours(image_id, k, latent_semantic_option):
     feature_vector_similarity_sorted_pairs = []
 
     # Iterated over images from superset to compute measures corresponding to each image
-    for index, latent_image_features in enumerate(image_superset_latent_features, 0):
+    for index, label_latent_feature in enumerate(label_latent_features, 0):
         feature_vector_similarity_list = get_feature_vector_similarity_sorted_pairs(feature_vector_similarity_list,
                                                                                     input_image_latent_feature,
-                                                                                    latent_image_features)
+                                                                                    label_latent_feature)
         # match latent_semantic_option:
         #     case 1:
         #         # Calculated euclidian distance between input image and iterated image for HOG feature descriptor
@@ -493,11 +522,12 @@ def get_k_nearest_neighbours(image_id, k, latent_semantic_option):
 # Driver function to compute features
 def driver():
     image_id = input("Enter image ID between 0-8676 or image path.\n")
-    latent_semantic_option = input("Please enter latent semantic in format Task-FeatureModel-ReducedDimension-DimensionReductionTechnique\n"
-              "Valid Tasks: T3, T4, T5, T6\n"
-              "Valid Feature Model: CM, HOG, AvgPool, L3, FC, RESNET\n"
-              "Valid Reduced Dimension: 1 - length of feature model\n"
-              "Valid Dimension Reduction Technique: SVD, NNMF, LDA, kmeans\n")
+    latent_semantic_option = input(
+        "Please enter latent semantic in format Task-FeatureModel-ReducedDimension-DimensionReductionTechnique\n"
+        "Valid Tasks: T3, T4, T5, T6\n"
+        "Valid Feature Model: CM, HOG, AvgPool, L3, FC, RESNET\n"
+        "Valid Reduced Dimension: 1 - length of feature model\n"
+        "Valid Dimension Reduction Technique: SVD, NNMF, LDA, kmeans\n")
     is_valid_feature_option = validate_latent_semantic_option(latent_semantic_option)
     while not is_valid_feature_option:
         print(f"Invalid input: {latent_semantic_option}")
@@ -540,5 +570,4 @@ def validate_latent_semantic_option(latent_semantic_option):
 
 if __name__ == "__main__":
     # driver()
-    get_k_nearest_neighbours("2500", 6, "T3-FC-5-SVD")
-
+    get_k_nearest_neighbours("5122", 5, "T3-FC-5-NNMF")

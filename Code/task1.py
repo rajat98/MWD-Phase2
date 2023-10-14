@@ -380,7 +380,7 @@ def plot_result(feature_vector_similarity_sorted_pairs, image_id_list, k, input_
 
     # Number of rows needed(1 Original image + 5 Feature models)
     num_rows = 2
-    fig, axes = plt.subplots(num_rows, images_per_row + 1, figsize=(30, 25))
+    fig, axes = plt.subplots(num_rows, images_per_row + 1, figsize=(15, 10))
     plt.subplots_adjust(wspace=0.5)
 
     # Load and display the original image

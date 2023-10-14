@@ -14,6 +14,7 @@ from scipy.signal import convolve2d
 from sklearn.decomposition import LatentDirichletAllocation
 from torchvision.transforms import transforms
 from sklearn.decomposition import TruncatedSVD
+from sklearn.decomposition import NMF
 
 
 ROOT_DIR = '/home/rpaw/MWD/caltech-101/caltech-101/101_ObjectCategories/'
@@ -464,11 +465,17 @@ def process_top_k_latent_semantics(feature_option, k, dim_red_opn):
         case 2:
             # model = NMF(n_components=k)
             feature_matrix = get_positive_feature_matrix(feature_matrix)
-            W, H = nmf_sgd(feature_matrix, k)
 
-            # https://www.geeksforgeeks.org/non-negative-matrix-factorization/
-            image_to_latent_features = feature_matrix @ H.T
-            latent_feature_to_original_feature = H
+            # W, H = nmf_sgd(feature_matrix, k)
+            #
+            # # https://www.geeksforgeeks.org/non-negative-matrix-factorization/
+            # image_to_latent_features = feature_matrix @ H.T
+            # latent_feature_to_original_feature = H
+
+            nmf = NMF(n_components=k)
+            nmf.fit(feature_matrix)
+            latent_feature_to_original_feature = nmf.components_
+            image_to_latent_features = feature_matrix @ latent_feature_to_original_feature.T
         case 3:
             feature_matrix = get_positive_feature_matrix(feature_matrix)
             lda = LatentDirichletAllocation(n_components=k)
@@ -493,9 +500,9 @@ def save_latent_features_to_file(image_to_latent_features, latent_feature_to_ori
                        'latent_feature_to_original_feature': latent_feature_to_original_feature}
     dim_red_opn_to_string_map = {
         1: "SVD",
-        2: "NMF",
+        2: "NNMF",
         3: "LDA",
-        4: "K-Means"
+        4: "kmeans"
     }
     feature_option_to_feature_index_map = {
         1: "HOG",
@@ -523,42 +530,37 @@ def print_image_id_weight_pairs(latent_features, dim_red_opn):
             print(f"latent feature: {sorted_index}  latent feature value: {latent_features[sorted_index]}")
 
 
-import numpy as np
-
-
-def nmf_sgd(feature_matrix, k, num_iterations=1000, learning_rate=0.01, regularization=0.01, gradient_clip=1.0):
-    # Initialize matrices W and H with random non-negative values
-    W = np.random.rand(feature_matrix.shape[0], k) * 0.01
-    H = np.random.rand(k, feature_matrix.shape[1]) * 0.01
+def nmf_sgd(X, num_components, num_iterations=1000, learning_rate=0.01, batch_size=10):
+    n, m = X.shape
+    W = np.random.rand(n, num_components)
+    H = np.random.rand(num_components, m)
 
     for iteration in range(num_iterations):
-        # Compute the current approximation of X
-        X_approx = np.dot(W, H)
+        # Randomly shuffle the data indices for mini-batch SGD
+        indices = np.arange(n)
+        np.random.shuffle(indices)
 
-        # Compute the error
-        error = feature_matrix - X_approx
+        for start in range(0, n, batch_size):
+            end = min(start + batch_size, n)
+            batch_indices = indices[start:end]
 
-        # Update W using SGD with L2 regularization and gradient clipping
-        for i in range(feature_matrix.shape[0]):
-            for j in range(k):
-                gradient = 0
-                for l in range(feature_matrix.shape[1]):
-                    gradient += 2 * error[i][l] * H[j][l]
-                gradient += 2 * regularization * W[i][j]  # L2 regularization term
-                gradient = np.clip(gradient, -gradient_clip, gradient_clip)  # Gradient clipping
-                W[i][j] += learning_rate * gradient
+            X_batch = X[batch_indices, :]
+            W_batch = W[batch_indices, :]
+            H_batch = H[:, :]
 
-        # Update H using SGD with L2 regularization and gradient clipping
-        for i in range(k):
-            for j in range(feature_matrix.shape[1]):
-                gradient = 0
-                for l in range(feature_matrix.shape[0]):
-                    gradient += 2 * error[l][j] * W[l][i]
-                gradient += 2 * regularization * H[i][j]  # L2 regularization term
-                gradient = np.clip(gradient, -gradient_clip, gradient_clip)  # Gradient clipping
-                H[i][j] += learning_rate * gradient
+            X_approx = np.dot(W_batch, H_batch)
+
+            # Compute the gradients using matrix multiplication
+            gradient_W = -2 * X_batch.dot(H_batch.T) + 2 * W_batch.dot(H_batch.dot(H_batch.T))
+            gradient_H = -2 * W_batch.T.dot(X_batch) + 2 * W_batch.T.dot(W_batch.dot(H_batch))
+
+            # Update W and H using the gradients
+            W_batch -= learning_rate * gradient_W
+            H_batch -= learning_rate * gradient_H
 
     return W, H
+
+
 
 
 def nnfm(feature_matrix, k, max_iter, init_mode='random'):
