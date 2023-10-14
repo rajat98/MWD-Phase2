@@ -399,21 +399,26 @@ def get_input_image_latent_feature(input_image_features, latent_feature_to_origi
     return latent_input_image_feature
 
 
-def get_label_features(input_label_features, image_id_label_map):
-    # result = []
+def get_label_features(input_label_features, image_id_label_list):
+    result = []
     label_feature = []
     for i in range(101):
         label_feature.append([])
+    image_id_label_map = dict()
+    for image_id_label_tuple in image_id_label_list:
+        image_id_label_map[image_id_label_tuple["image_id"]] = image_id_label_tuple["image_label"]
 
     for index, input_label_feature in enumerate(input_label_features, 0):
-        filtered_items = [h for h in image_id_label_map if h["image_id"] == index * 2]
-        image_label = filtered_items[""]
-        label_feature[image_label].append(input_label_feature)
+        label_feature[image_id_label_map[2*index]].append(input_label_feature)
+        # print(len(input_label_feature))
 
-    label_feature_array = np.array(label_feature)
-    averaged_array = np.mean(label_feature_array, axis=1)
+    for lf in label_feature:
+        result.append(np.array(lf).mean(axis=0).tolist())
 
-    return averaged_array
+    # label_feature_array = np.array(label_feature)
+    # averaged_array = np.mean(label_feature_array, axis=1)
+
+    return result
 
 
 def get_k_nearest_neighbours(image_id, k, latent_semantic_option):
@@ -513,10 +518,13 @@ def get_k_nearest_neighbours(image_id, k, latent_semantic_option):
     feature_vector_similarity_sorted_elements = np.sort(feature_vector_similarity_list)[::-1]
 
     feature_vector_similarity_sorted_pairs = list(
-        zip(feature_vector_similarity_sorted_elements, feature_vector_similarity_sorted_indices))
+        zip(feature_vector_similarity_sorted_elements, feature_vector_similarity_sorted_indices))[:k]
 
+    print(f"K similar labels to input image:\n")
+    for score, label in feature_vector_similarity_sorted_pairs:
+        print(f"label: {label} score: {score}")
     # Plotted results
-    plot_result(feature_vector_similarity_sorted_pairs[:k], image_id_list, k, image_id, latent_semantic_option)
+    # plot_result(feature_vector_similarity_sorted_pairs[:k], image_id_list, k, image_id, latent_semantic_option)
 
 
 # Driver function to compute features
@@ -570,4 +578,4 @@ def validate_latent_semantic_option(latent_semantic_option):
 
 if __name__ == "__main__":
     # driver()
-    get_k_nearest_neighbours("5122", 5, "T3-FC-5-NNMF")
+    get_k_nearest_neighbours("0", 5, "T3-FC-5-SVD")
