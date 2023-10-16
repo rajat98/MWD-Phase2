@@ -25,11 +25,6 @@ DATABASE = MONGO_CLIENT['mwd_db']
 
 
 def get_feature_vector_similarity_sorted_pairs(feature_vector_similarity_list, input_image_feature, image_feature):
-    # Calculated euclidian distance between input image and iterated image for feature descriptor
-    # if feature_option in [1, 2]:
-    # feature_vector_similarity = calculate_euclidian_distance(np.array(input_image_feature),
-    #                                                              np.array(image_feature))
-    # else:
     feature_vector_similarity = cosine_similarity(np.array(input_image_feature),
                                                   np.array(image_feature))
     return np.append(feature_vector_similarity_list, feature_vector_similarity)
@@ -224,11 +219,6 @@ def get_k_nearest_neighbours(image_id, k, latent_semantic_option):
         current_image_id = 2 * index
         image_id_list.append(current_image_id)
 
-    # Sorted and paired index with similarity score
-    # if latent_semantic_option in [1, 2]:
-    # feature_vector_similarity_sorted_indices = np.argsort(feature_vector_similarity_list)
-    # feature_vector_similarity_sorted_elements = np.sort(feature_vector_similarity_list)
-    # else:
     feature_vector_similarity_sorted_indices = np.argsort(feature_vector_similarity_list)[::-1]
     feature_vector_similarity_sorted_elements = np.sort(feature_vector_similarity_list)[::-1]
 
@@ -289,7 +279,7 @@ def validate_latent_semantic_option(latent_semantic_option):
 
 
 if __name__ == "__main__":
-    # driver()
-    # get_k_nearest_neighbours("2500", 10, "T3-FC-5-SVD")
-    get_k_nearest_neighbours("0", 10, "T3-CM-5-SVD")
-    get_k_nearest_neighbours("8676", 10, "T3-CM-5-SVD")
+    driver()
+    # # get_k_nearest_neighbours("2500", 10, "T3-FC-5-SVD")
+    # get_k_nearest_neighbours("0", 10, "T3-CM-5-SVD")
+    # get_k_nearest_neighbours("8676", 10, "T3-CM-5-SVD")

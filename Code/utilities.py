@@ -349,7 +349,6 @@ def cosine_similarity(vector_a, vector_b):
 
     # Calculated the cosine similarity
     similarity = dot_product / (norm_a * norm_b)
-    print("future computed")
     return similarity
 
 

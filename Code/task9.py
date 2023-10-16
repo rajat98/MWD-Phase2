@@ -20,7 +20,9 @@ def print_menu():
     method = int(input("Choose dimensionality reduction selected: "))
     label = int(input("Please enter the label(0-100): "))
     task = int(input("Please enter the task number(3, 4, 5, 6): "))
-    return feature_model, method, k, label, task
+    reduce_dimension = int(input("Please enter the reduced dimension of latent space: "))
+
+    return feature_model, method, k, label, task, reduce_dimension
 
 
 def load_latent_semantics(file_path):
@@ -47,18 +49,18 @@ def find_top_k_matching_labels(image_to_latent_features, selected_label_index, n
 def driver():
     # feature_model, method, k, label = print_menu()
 
-    feature_option = 5  # remove later
-    method = 4  # remove later
-    k = 5  # remove later
-    selected_label_index = 0  # remove later
-    task_number = 3
-    number_of_similar = 5
-
+    # feature_option = 5  # remove later
+    # method = 4  # remove later
+    # k = 5  # remove later
+    # selected_label_index = 0  # remove later
+    # task_number = 3
+    # number_of_similar = 5
+    feature_option, method, number_of_similar, selected_label_index, task_number, reduce_dimension = print_menu()
     # Example usage:
     task = task_to_string_map[task_number]
     feature_model = feature_option_to_feature_index_map[feature_option]
     method = dim_red_opn_to_string_map[method]
-    latent_feature_storage_path = f"../Outputs/{task}/{feature_model}/{method}_{k}.pkl"
+    latent_feature_storage_path = f"../Outputs/{task}/{feature_model}/{method}_{reduce_dimension}.pkl"
     image_to_latent_features = load_latent_semantics(latent_feature_storage_path)['image_to_latent_features']
     if method == 4:
         image_to_latent_features = pd.DataFrame(image_to_latent_features)

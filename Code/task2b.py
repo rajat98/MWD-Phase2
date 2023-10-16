@@ -149,6 +149,6 @@ def driver():
 
 
 if __name__ == "__main__":
-    # driver()
-    for input_label in [0, 880, 2500, 5122, 8676]:
-        get_k_nearest_neighbours(str(input_label), 10)
+    driver()
+    # for input_label in [0, 880, 2500, 5122, 8676]:
+    #     get_k_nearest_neighbours(str(input_label), 10)

@@ -89,7 +89,7 @@ def plot_result(feature_vector_similarity_sorted_pairs, image_id_list, k, input_
 
     # Saved output to output dir
     current_epoch_timestamp = int(datetime.now().timestamp())
-    output_path = f"../Outputs/T0b/{feature_option_to_feature_index_map[feature_option]}/id_{input_label}_k_{k}_ts_{current_epoch_timestamp}.png"
+    output_path = f"../Outputs/T0b/{feature_option_to_feature_index_map[feature_option]}/id_{image_id}_k_{k}_ts_{current_epoch_timestamp}.png"
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     plt.savefig(output_path)
 
@@ -243,7 +243,7 @@ def driver():
 
 
 if __name__ == "__main__":
-    # driver()
-    for input_label in [0, 880, 2500, 5122, 8676]:
-        for i in range(1,6):
-            get_k_nearest_neighbours(str(input_label), 10, i)
+    driver()
+    # for input_label in [0, 880, 2500, 5122, 8676]:
+    #     for i in range(1,6):
+    #         get_k_nearest_neighbours(str(input_label), 10, i)

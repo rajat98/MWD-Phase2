@@ -99,10 +99,7 @@ def driver():
     method = 4  # remove later
     k = 5  # remove later
     cm = 'y'  # remove later
-
-    # df = pd.read_csv('FD_Objects.csv')
-    # grouped_data = df.groupby('Labels')
-    # labels = list(grouped_data.groups.keys())
+    feature_model, method, k, cm = print_menu()
     if cm == 'y' or cm == 'Y':
         print('Calculating Similarity Matrix...')
         similarity_matrix = create_label_similarity_matrix(feature_model)

@@ -69,7 +69,7 @@ def driver():
                                "2. Color Moments\n"
                                "3. Resnet Layer 3\n"
                                "4. Resnet Avgpool\n"
-                               "5. Resnet FC"
+                               "5. Resnet FC\n"
                                "6. Resnet\n"))
     while feature_option not in list(range(1, 7)):
         print(f"Invalid input: {feature_option}")
@@ -110,16 +110,9 @@ def process_top_k_latent_semantics(feature_option, k, dim_red_opn):
             image_to_latent_features, latent_feature_to_original_feature = svd(k, feature_matrix)
         case 2:
             feature_matrix = get_positive_feature_matrix(feature_matrix)
-
-            # W, H = nmf_sgd(feature_matrix, k)
-            #
-            # image_to_latent_features = feature_matrix @ H.T
-            # latent_feature_to_original_feature = H
-
-            nmf = NMF(n_components=k)
-            nmf.fit(feature_matrix)
-            latent_feature_to_original_feature = nmf.components_
-            image_to_latent_features = feature_matrix @ latent_feature_to_original_feature.T
+            W, H = nmf_sgd(feature_matrix, k)
+            image_to_latent_features = feature_matrix @ H.T
+            latent_feature_to_original_feature = H
         case 3:
             feature_matrix = get_positive_feature_matrix(feature_matrix)
             image_to_latent_features, latent_feature_to_original_feature = lda(k, feature_matrix)
@@ -161,7 +154,6 @@ def print_image_id_weight_pairs(latent_features, dim_red_opn):
     for index, latent_features in enumerate(latent_features, 1):
         image_id = 2 * index
         sorted_indices = np.argsort(-latent_features)
-        # sorted_data = latent_features[sorted_indices]
         print(f"image_id: {image_id}")
         for sorted_index in sorted_indices:
             print(f"latent feature: {sorted_index}  latent feature value: {latent_features[sorted_index]}")
@@ -221,5 +213,5 @@ def get_feature_matrix(feature_option):
 
 
 if __name__ == "__main__":
-    # driver()
-    process_top_k_latent_semantics(6, 5, 4)
+    driver()
+    # process_top_k_latent_semantics(6, 5, 4)
