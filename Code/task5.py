@@ -1,13 +1,14 @@
-import numpy as np
-import re, os
-from tqdm import tqdm
-import pandas as pd
+import os
 import pickle
+import re
+
+import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
+from tqdm import tqdm
+
+from utilities import feature_model_dict
 from utilities import svd, lda, nnmf, kmeans, print_image_id_weight_pairs, save_latent_features_to_file, DATABASE, \
     feature_option_to_feature_index_mapping
-from utilities import task_to_string_map, dim_red_opn_to_string_map, feature_option_to_feature_index_map
-from utilities import feature_model_dict
 
 
 def parse_string(string):

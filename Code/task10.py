@@ -1,15 +1,15 @@
 import pickle
 
 import numpy as np
-import pandas as pd
 import torch
 import torchvision
 from matplotlib import pyplot as plt
 
 from utilities import calculate_similarity
-from utilities import task_to_string_map, dim_red_opn_to_string_map, feature_option_to_feature_index_map
+from utilities import task_to_string_map, dim_red_opn_to_string_map, feature_option_to_feature_index_map, BASE_DIR, \
+    DATABASE
 
-dataset = torchvision.datasets.Caltech101('/Users/dhamu/Downloads/')
+dataset = torchvision.datasets.Caltech101(BASE_DIR)
 data_loader = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=True, num_workers=8)
 
 
@@ -46,20 +46,23 @@ def print_menu():
 
 feature_option = 5  # remove later
 method_option = 4  # remove later
-k = 10  # remove later
+k = 5  # remove later
 selected_label_index = 0  # remove later
-task_number = 6
+task_number = 3
 number_of_similar = 5
 
-df = pd.read_csv('FD_Objects.csv')
-data = df['Labels']
-target_labels = [idx for idx, i in enumerate(data) if i == selected_label_index]
+target_labels = []
+collection = DATABASE.feature_descriptors
+label_to_image_id_list = collection.find({"image_label": selected_label_index}, {"image_id": 1, "_id": 0})
+for h in label_to_image_id_list:
+    target_labels.append(h["image_id"])
+
 top_scores = []
 
 task = task_to_string_map[task_number]
 feature_model = feature_option_to_feature_index_map[feature_option]
 method = dim_red_opn_to_string_map[method_option]
-latent_feature_storage_path = f"Outputs/{task}/{feature_model}/{method}_{k}.pkl"
+latent_feature_storage_path = f"../Outputs/{task}/{feature_model}/{method}_{k}.pkl"
 image_to_latent_features = load_latent_semantics(latent_feature_storage_path)['image_to_latent_features']
 if (method_option != 4):
     image_to_latent_features = image_to_latent_features.values

@@ -30,7 +30,7 @@ def save_feature_descriptor(document):
 # Function to save all 5 feature descriptor for complete dataset
 def save_feature_descriptors():
     dataset = datasets.Caltech101(BASE_DIR)
-    collection = DATABASE.even_numbered_feature_space
+    collection = DATABASE.feature_descriptors
 
     for image_id in range(len(dataset)):
         if image_id % 2 == 1:

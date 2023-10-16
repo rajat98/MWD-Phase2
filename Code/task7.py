@@ -290,4 +290,6 @@ def validate_latent_semantic_option(latent_semantic_option):
 
 if __name__ == "__main__":
     # driver()
-    get_k_nearest_neighbours("2500", 5, "T3-FC-5-SVD")
+    # get_k_nearest_neighbours("2500", 10, "T3-FC-5-SVD")
+    get_k_nearest_neighbours("0", 10, "T3-CM-5-SVD")
+    get_k_nearest_neighbours("8676", 10, "T3-CM-5-SVD")

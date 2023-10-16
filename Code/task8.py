@@ -72,7 +72,7 @@ def plot_result(feature_vector_similarity_sorted_pairs, image_id_list, k, input_
 
     # Number of rows needed(1 Original image + 5 Feature models)
     num_rows = 2
-    fig, axes = plt.subplots(num_rows, images_per_row + 1, figsize=(15, 10))
+    fig, axes = plt.subplots(num_rows, images_per_row + 1, figsize=(30, 10))
     plt.subplots_adjust(wspace=0.5)
 
     # Load and display the original image
@@ -313,4 +313,5 @@ def validate_latent_semantic_option(latent_semantic_option):
 
 if __name__ == "__main__":
     # driver()
-    get_k_nearest_neighbours("0", 5, "T3-FC-5-SVD")
+    get_k_nearest_neighbours("0", 10, "T3-CM-5-SVD")
+    get_k_nearest_neighbours("8676", 10, "T3-CM-5-SVD")

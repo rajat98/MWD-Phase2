@@ -32,7 +32,7 @@ dim_red_opn_to_string_map = {
     1: "SVD",
     2: "NMF",
     3: "LDA",
-    4: "K-Means"
+    4: "kmeans"
 }
 feature_option_to_feature_index_map = {
     1: "HOG",
@@ -76,7 +76,7 @@ def svd(k, feature_matrix):
     v_transpose = eigenvectors_1[ncols1].T
     u = eigenvectors_2[ncols2]
     sigma = np.diag(np.sqrt(eigenvalues_1)[::-1])
-    trucated_u =  u[:, :k]
+    trucated_u = u[:, :k]
     trucated_sigma = sigma[:k, :k]
     truncated_v_transpose = v_transpose[:k, :]
     image_to_latent_features = feature_matrix @ truncated_v_transpose.T
@@ -349,7 +349,7 @@ def cosine_similarity(vector_a, vector_b):
 
     # Calculated the cosine similarity
     similarity = dot_product / (norm_a * norm_b)
-
+    print("future computed")
     return similarity
 
 
@@ -357,3 +357,6 @@ def cosine_similarity(vector_a, vector_b):
 def calculate_euclidian_distance(vector1, vector2):
     return np.linalg.norm(vector1 - vector2)
 
+
+def get_resnet_feature(feature):
+    return torch.nn.functional.softmax(torch.tensor(feature, dtype=torch.float)).tolist()

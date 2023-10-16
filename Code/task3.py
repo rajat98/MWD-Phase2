@@ -124,7 +124,7 @@ def process_top_k_latent_semantics(feature_option, k, dim_red_opn):
             feature_matrix = get_positive_feature_matrix(feature_matrix)
             image_to_latent_features, latent_feature_to_original_feature = lda(k, feature_matrix)
         case 4:
-            centroid, latent_features = kmeans(feature_matrix, k)
+            centroid, latent_features = kmeans(k, feature_matrix)
             image_to_latent_features = latent_features
             latent_feature_to_original_feature = centroid
 
@@ -222,4 +222,4 @@ def get_feature_matrix(feature_option):
 
 if __name__ == "__main__":
     # driver()
-    process_top_k_latent_semantics(5, 5, 2)
+    process_top_k_latent_semantics(6, 5, 4)

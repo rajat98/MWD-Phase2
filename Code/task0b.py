@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 
 import PIL.Image
@@ -8,7 +9,8 @@ import torchvision.models as models
 from pymongo import MongoClient
 
 from Code.utilities import calculate_euclidian_distance, cosine_similarity, extract_hog_descriptor, \
-    extract_resnet_layer3_1024, extract_color_moment, extract_resnet_avgpool_1024, extract_resnet_fc_1000
+    extract_resnet_layer3_1024, extract_color_moment, extract_resnet_avgpool_1024, extract_resnet_fc_1000, \
+    feature_option_to_feature_index_map
 
 ROOT_DIR = '/home/rpaw/MWD/caltech-101/caltech-101/101_ObjectCategories/'
 CNN_MODEL = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
@@ -29,7 +31,7 @@ def plot_result(feature_vector_similarity_sorted_pairs, image_id_list, k, input_
 
     # Number of rows needed(1 Original image + 5 Feature models)
     num_rows = 2
-    fig, axes = plt.subplots(num_rows, images_per_row + 1, figsize=(15, 10))
+    fig, axes = plt.subplots(num_rows, images_per_row + 1, figsize=(30, 10))
     plt.subplots_adjust(wspace=0.5)
 
     # Load and display the original image
@@ -87,7 +89,9 @@ def plot_result(feature_vector_similarity_sorted_pairs, image_id_list, k, input_
 
     # Saved output to output dir
     current_epoch_timestamp = int(datetime.now().timestamp())
-    plt.savefig(f"../Outputs/id_{input_image_id}_k_{k}_ts_{current_epoch_timestamp}.png")
+    output_path = f"../Outputs/T0b/{feature_option_to_feature_index_map[feature_option]}/id_{input_label}_k_{k}_ts_{current_epoch_timestamp}.png"
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    plt.savefig(output_path)
 
     plt.show()
 
@@ -239,4 +243,7 @@ def driver():
 
 
 if __name__ == "__main__":
-    driver()
+    # driver()
+    for input_label in [0, 880, 2500, 5122, 8676]:
+        for i in range(1,6):
+            get_k_nearest_neighbours(str(input_label), 10, i)

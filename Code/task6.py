@@ -1,13 +1,14 @@
+import os
+import pickle
+import re
 from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
-import re, os, pickle
-import pandas as pd
 from tqdm import tqdm
+
+from utilities import feature_model_dict, cosine_similarity
 from utilities import svd, lda, nnmf, kmeans, print_image_id_weight_pairs, save_latent_features_to_file, DATABASE, \
     feature_option_to_feature_index_mapping
-from utilities import task_to_string_map, dim_red_opn_to_string_map, feature_option_to_feature_index_map
-from utilities import feature_model_dict, cosine_similarity
 
 
 def parse_string(string):
@@ -17,34 +18,10 @@ def parse_string(string):
     return np_array
 
 
-# def create_image_similarity_matrix(feature_model):
-#     """Calculate image-image similarity matrix based on mean vectors
-#     Return a square matrix representing label similarities"""
-#     collection = DATABASE.feature_descriptors
-#     images_size = collection.count_documents({})
-#     similarity_matrix = np.zeros((images_size, images_size))
-#     index = feature_option_to_feature_index_mapping[feature_model]
-#     for i in tqdm(range(images_size)):
-#         label1_data = collection.find({"image_label": i}, {index: 1, "_id": 0})
-#
-#         image1_vector = collection.find({"image_id": 2*i}, {index: 1, "_id": 0})
-#         # image1_vector = [input_label_feature[index] for input_label_feature in image1_vector]
-#         image1_vector = np.array(image1_vector[0][index])
-#         # image1_vector = data[i]
-#         for j in range(i, images_size):
-#             # image2_vector = data[j]
-#             image2_vector = collection.find({"image_id": 2*j}, {index: 1, "_id": 0})
-#             # image2_vector = [input_label_feature[index] for input_label_feature in image2_vector]
-#             image2_vector = np.array(image2_vector[0][index])
-#             similarity_score = cosine_similarity(image1_vector, image2_vector)
-#             # Fill both upper and lower triangles of the similarity matrix
-#             similarity_matrix[i, j] = similarity_score
-#             similarity_matrix[j, i] = similarity_score
-#     return similarity_matrix
-
 def create_image_similarity_matrix(feature_model):
     collection = DATABASE.feature_descriptors
     images_size = collection.count_documents({})
+
     index = feature_option_to_feature_index_mapping[feature_model]
 
     def get_image_vector(image_id):
@@ -129,20 +106,18 @@ def driver():
     method = 4  # remove later
     k = 5  # remove later
     cm = 'y'  # remove later
+    feature_model, method, k, cm = print_menu()
 
-    # df = pd.read_csv('FD_Objects.csv')
-    # data = df[feature_model_dict[feature_model]]
-    # data = data.apply(parse_string)
     if cm == 'y' or cm == 'Y':
         similarity_matrix = create_image_similarity_matrix(feature_model)
         # Save the similarity matrix
         save_similarity_matrix(similarity_matrix)
+    else:
+        filepath = f"../Outputs/T6/image_similarity.pkl"
+        with open(filepath, 'rb') as file:
+            image_similarity_matrix_file = pickle.load(file)
+        similarity_matrix = image_similarity_matrix_file["image_similarity_matrix"]
 
-    filepath = f"Outputs/T6/image_similarity.pkl"
-
-    with open(filepath, 'rb') as file:
-        image_similarity_matrix_file = pickle.load(file)
-    similarity_matrix = image_similarity_matrix_file["image_similarity_matrix"]
     print(similarity_matrix.shape)
     perform_dimensionality_reduction(similarity_matrix, feature_model, method, k)
 

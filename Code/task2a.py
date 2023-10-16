@@ -1,11 +1,15 @@
+from datetime import datetime
+import os
+
 import PIL.Image
 import numpy as np
 import torchvision.datasets as datasets
 import torchvision.models as models
 from pymongo import MongoClient
 
+
 from Code.utilities import calculate_euclidian_distance, cosine_similarity, extract_hog_descriptor, \
-    extract_resnet_layer3_1024, extract_color_moment, extract_resnet_avgpool_1024, extract_resnet_fc_1000
+    extract_resnet_layer3_1024, extract_color_moment, extract_resnet_avgpool_1024, extract_resnet_fc_1000, feature_option_to_feature_index_map as dir_map
 
 ROOT_DIR = '/home/rpaw/MWD/caltech-101/caltech-101/101_ObjectCategories/'
 CNN_MODEL = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
@@ -112,9 +116,15 @@ def get_k_nearest_neighbours(image_id, k, feature_option):
     feature_vector_similarity_sorted_pairs = list(
         zip(feature_vector_similarity_sorted_elements, feature_vector_similarity_sorted_indices))[:k]
 
-    print(f"K similar labels to input image:\n")
+    current_epoch_timestamp = int(datetime.now().timestamp())
+    output_path = f"../Outputs/T2a/{dir_map[feature_option]}/id_{image_id}_k_{k}_ts_{current_epoch_timestamp}.txt"
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    print(f"K similar labels to input image: {image_id}\n")
+    file = open(output_path, "a")
+    file.write(f"K similar labels to input image: {image_id}\n")
     for score, label in feature_vector_similarity_sorted_pairs:
         print(f"label: {label} score: {score}")
+        file.write(f"label: {label} score: {score}\n")
 
 
 def get_feature_vector_similarity_sorted_pairs(feature_vector_similarity_list, input_image_feature, image_feature,
@@ -183,4 +193,8 @@ def driver():
 
 
 if __name__ == "__main__":
-    driver()
+    # driver()
+
+    for input_label in [0, 880, 2500, 5122, 8676]:
+        for i in range(1,6):
+            get_k_nearest_neighbours(str(input_label), 10, i)
